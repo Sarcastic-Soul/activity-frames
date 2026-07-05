@@ -1,0 +1,86 @@
+"""Read-only access to the local capture database.
+
+The capture engine owns this database; activity-frames never writes to
+it. Connections are opened with SQLite's read-only URI flag so a bug
+here cannot corrupt capture data.
+"""
+from __future__ import annotations
+
+import os
+import sqlite3
+from pathlib import Path
+from typing import Any, Iterable
+
+DEFAULT_DB_CANDIDATES = (
+    "~/.nocta-recorder/db.sqlite",       # default engine data dir
+    "~/.nocta-recorder/nocta-recorder.db",
+)
+
+
+class RecorderDBNotFound(FileNotFoundError):
+    """Raised when no capture database can be located."""
+
+
+def find_default_db() -> str:
+    """Locate the capture DB, honoring $AFRAMES_DB (or $NOCTA-RECORDER_DB)."""
+    for var in ("AFRAMES_DB", "NOCTA-RECORDER_DB"):
+        env = os.environ.get(var)
+        if env:
+            p = Path(env).expanduser()
+            if p.exists():
+                return str(p)
+            raise RecorderDBNotFound(f"${var} points to a missing file: {env}")
+    for cand in DEFAULT_DB_CANDIDATES:
+        p = Path(cand).expanduser()
+        if p.exists():
+            return str(p)
+    raise RecorderDBNotFound(
+        "No capture database found. Start recording with: aframes record "
+        "(or point $AFRAMES_DB at an existing capture database)."
+    )
+
+
+class Database:
+    """Minimal read-only SQLite wrapper (port of Nocta's SQLiteDB.swift)."""
+
+    def __init__(self, path: str | None = None):
+        self.path = path or find_default_db()
+        p = Path(self.path).expanduser()
+        if not p.exists():
+            raise RecorderDBNotFound(f"Database not found: {self.path}")
+        # as_uri() percent-encodes special characters and handles Windows
+        # drive letters, unlike naive f"file:{path}" interpolation.
+        uri = p.resolve().as_uri() + "?mode=ro"
+        self._conn = sqlite3.connect(uri, uri=True, timeout=3.0)
+        self._conn.execute("PRAGMA query_only = ON")
+
+    def rows(self, sql: str, params: Iterable[Any] = ()) -> list[tuple]:
+        cur = self._conn.execute(sql, tuple(params))
+        try:
+            return cur.fetchall()
+        finally:
+            cur.close()
+
+    def scalar(self, sql: str, params: Iterable[Any] = (), default: Any = 0) -> Any:
+        rows = self.rows(sql, params)
+        if rows and rows[0] and rows[0][0] is not None:
+            return rows[0][0]
+        return default
+
+    def table_exists(self, name: str) -> bool:
+        return (
+            self.scalar(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+                (name,),
+            )
+            > 0
+        )
+
+    def close(self) -> None:
+        self._conn.close()
+
+    def __enter__(self) -> "Database":
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.close()

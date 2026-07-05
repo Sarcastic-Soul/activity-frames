@@ -1,0 +1,82 @@
+import json
+
+from activity_frames.emit import context_block, to_json, to_markdown, to_yaml
+from activity_frames.frames import SCHEMA_VERSION, build_frames
+
+
+def _doc(fixture_db, day_window, **kw):
+    return build_frames(fixture_db, *day_window, **kw)
+
+
+def test_document_shape(fixture_db, day_window):
+    doc = _doc(fixture_db, day_window)
+    d = doc.to_dict()
+    assert d["schema_version"] == SCHEMA_VERSION
+    assert d["source"]["recorder"] == "nocta-recorder"
+    assert d["coverage"]["frames_analyzed"] > 0
+    assert d["frames"], "should produce frames"
+    assert d["blind_spots"]
+
+
+def test_frame_fields(fixture_db, day_window):
+    doc = _doc(fixture_db, day_window)
+    li = next(f for f in doc.frames if f.site == "linkedin.com")
+    assert li.duration_min > 5
+    assert li.evidence["frame_ids"]
+    kinds = {p.kind for p in li.pages}
+    assert "people_search" in kinds
+    assert "profile" in kinds
+    # Page views aggregate: two distinct profiles, each one entry.
+    profiles = [p for p in li.pages if p.kind == "profile"]
+    assert {p.entity for p in profiles} == {"jane-doe", "john-smith"}
+
+
+def test_input_counts_attached(fixture_db, day_window):
+    doc = _doc(fixture_db, day_window)
+    cur = next(f for f in doc.frames if f.app == "Cursor")
+    assert cur.input.keystrokes >= 2  # 2 key events + text chars
+    assert cur.input.copies == 1
+
+
+def test_text_snippets_opt_in(fixture_db, day_window):
+    default = _doc(fixture_db, day_window)
+    cur = next(f for f in default.frames if f.app == "Cursor")
+    assert cur.input.text_snippets == []
+    with_text = _doc(fixture_db, day_window, include_text=True, layout="azerty")
+    cur2 = next(f for f in with_text.frames if f.app == "Cursor")
+    assert any("hello world" in s for s in cur2.input.text_snippets)
+    # And even then, JSON excludes text unless the emitter is asked too.
+    d = json.loads(to_json(with_text))
+    f = next(x for x in d["frames"] if x["app"] == "Cursor")
+    assert "text" not in f.get("input", {})
+    d2 = json.loads(to_json(with_text, include_input_text=True))
+    f2 = next(x for x in d2["frames"] if x["app"] == "Cursor")
+    assert f2["input"]["text"]
+
+
+def test_min_minutes_filter(fixture_db, day_window):
+    all_frames = _doc(fixture_db, day_window, min_minutes=0.0).frames
+    big_frames = _doc(fixture_db, day_window, min_minutes=5.0).frames
+    assert len(big_frames) <= len(all_frames)
+    assert all(f.duration_min >= 5.0 for f in big_frames)
+
+
+def test_emitters_produce_output(fixture_db, day_window):
+    doc = _doc(fixture_db, day_window)
+    j = json.loads(to_json(doc))
+    assert j["frames"]
+    y = to_yaml(doc)
+    assert "schema_version" in y
+    md = to_markdown(doc)
+    assert "| # |" in md.splitlines()[4] or "| # |" in md
+    ctx = context_block(doc)
+    assert "USER ACTIVITY" in ctx
+    assert "linkedin.com" in ctx
+
+
+def test_context_block_respects_max_frames(fixture_db, day_window):
+    doc = _doc(fixture_db, day_window)
+    ctx = context_block(doc, max_frames=1)
+    frame_lines = [l for l in ctx.splitlines() if l.startswith("- ")]
+    assert len(frame_lines) == 1
+    assert "omitted" in ctx
