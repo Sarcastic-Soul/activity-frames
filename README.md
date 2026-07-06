@@ -124,4 +124,4 @@ aframes mcp                      # MCP stdio server
 
 v0.1. Developed and tested on macOS (Apple Silicon); Intel macOS and Linux x64 engine builds exist but are less exercised - reports welcome. Entity parsers cover LinkedIn, GitHub, Google (Search/Docs/Gmail/Maps/Meet/Calendar), YouTube, X, Instagram, Reddit, Luma, Partiful, Product Hunt, Vercel, Supabase, Stripe, Discord, Notion, Figma, Stack Overflow, Calendly, ChatGPT/Claude, localhost; unknown sites fall back to a generic page reference - always total, never lossy. Issues and parser PRs welcome.
 
-Built by [Nossa Iyamu](https://github.com/nossa-y), maker of [Nocta](https://usenocta.com). MIT.
+Built by [Nossa Iyamu](https://github.com/nossa-y), maker of [Nocta](https://usenocta.app). MIT.
