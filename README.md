@@ -7,6 +7,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-server-6E56CF)](https://modelcontextprotocol.io)
 
+
+> **[Download the desktop app](https://usenocta.app)** - Nocta uses activity-frames to watch how you work and brief you daily on what needs your attention. 100% local.
+
 **Episodic memory for AI agents.**
 
 Your agent can read your code, search the web, and call APIs - but it has no idea what you have been doing for the last 8 hours. It starts every conversation blind.
