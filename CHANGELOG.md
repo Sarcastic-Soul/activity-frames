@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and versions follow semantic
 versioning. The document schema version is tracked separately in [SPEC.md](SPEC.md).
 
-## [Unreleased]
+## [0.2.0] - 2026-07-16
 
 ### Added
 - **Communications view**: `ActivityLog.communications()` /

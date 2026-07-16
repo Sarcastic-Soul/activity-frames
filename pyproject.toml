@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "activity-frames"
-version = "0.1.0"
+version = "0.2.0"
 description = "Episodic memory for AI agents: compile raw screen capture into structured, deterministic activity frames."
 readme = "README.md"
 license = "MIT"

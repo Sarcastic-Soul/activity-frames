@@ -30,7 +30,7 @@ from .frames import (
 from .patterns import WorkPattern, detect as detect_patterns
 from .sessionize import Coverage, Segment, app_ledger, coverage, segments
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "ActivityLog",
     "ActivityDocument",
