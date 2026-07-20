@@ -54,6 +54,11 @@ def comms_db(tmp_path):
         # Browser Slack must not be mistaken for a generic app-hosted dashboard.
         ("17:12:00", "Google Chrome", "engineering - Slack",
          "https://app.slack.com/client/T123/C456"),
+        # Extended Slack URLs must remain visible to the communications view.
+        ("17:13:00", "Google Chrome", "release-notes - Slack",
+         "https://acme.slack.com/archives/C789/p135854651500008"),
+        ("17:14:00", "Google Chrome", "support - Slack",
+         "https://slack.com/app_redirect?team=T123&channel=C999"),
         # Non-communication activity: must never appear.
         ("17:20:00", "Cursor", "main.py - project", None),
         ("17:21:00", "Google Chrome", "acme/api: PR #7",
@@ -109,6 +114,19 @@ def test_slack_web_client_is_a_messaging_surface(comms_db):
         "messaging", "Google Chrome", 1
     )
     assert [t.text for t in slack.titles] == ["engineering - Slack"]
+
+
+def test_slack_extended_urls_are_messaging_surfaces(comms_db):
+    slack = {
+        s.site: s for s in surfaces(comms_db, *WINDOW)
+        if s.site and s.site.endswith("slack.com")
+    }
+    assert set(slack) == {"app.slack.com", "acme.slack.com", "slack.com"}
+    assert {s.kind for s in slack.values()} == {"messaging"}
+    assert [t.text for t in slack["acme.slack.com"].titles] == [
+        "release-notes - Slack"
+    ]
+    assert [t.text for t in slack["slack.com"].titles] == ["support - Slack"]
 
 
 def test_kind_filter(comms_db):

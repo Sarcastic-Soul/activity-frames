@@ -129,17 +129,46 @@ def test_discord_and_notion():
     assert n.entity == "My Project Notes"
 
 
-def test_slack_web_client():
-    channel = parse_url("https://app.slack.com/client/T123/C456")
-    assert (channel.kind, channel.domain, channel.entity) == (
-        "messaging", "app.slack.com", "T123/C456"
+def test_slack_app_conversation_and_workspace():
+    conversation = parse_url("https://app.slack.com/client/T123ABC456/C123ABC456")
+    assert (conversation.kind, conversation.entity, conversation.domain) == (
+        "messaging", "T123ABC456/C123ABC456", "app.slack.com"
     )
+    workspace = parse_url("https://app.slack.com/client/T123ABC456")
+    assert (workspace.kind, workspace.entity) == ("messaging", "T123ABC456")
     root = parse_url("https://app.slack.com/client")
     assert (root.kind, root.entity) == ("messaging", None)
-    archive = parse_url("https://acme.slack.com/archives/C456")
-    assert (archive.kind, archive.domain, archive.entity) == (
-        "messaging", "acme.slack.com", "C456"
+
+
+def test_slack_workspace_permalink():
+    channel = parse_url("https://acme.slack.com/archives/C123ABC456")
+    assert (channel.kind, channel.entity) == ("messaging", "acme/C123ABC456")
+    message = parse_url(
+        "https://acme.slack.com/archives/C123ABC456/p135854651500008"
     )
+    assert (message.kind, message.entity) == (
+        "messaging", "acme/C123ABC456/p135854651500008"
+    )
+
+
+def test_slack_app_redirect():
+    linked = parse_url(
+        "https://slack.com/app_redirect?team=T123ABC456&channel=C123ABC456"
+    )
+    assert (linked.kind, linked.entity) == (
+        "messaging", "T123ABC456/C123ABC456"
+    )
+    named = parse_url("https://slack.com/app_redirect?channel=release-notes")
+    assert (named.kind, named.entity) == ("messaging", "release-notes")
+
+
+def test_slack_home_workspace_signin_and_unknown():
+    assert parse_url("https://slack.com/").kind == "home"
+    workspace = parse_url("https://acme.slack.com/")
+    assert (workspace.kind, workspace.entity) == ("messaging", "acme")
+    assert parse_url("https://slack.com/signin").kind == "sign_in"
+    unknown = parse_url("https://slack.com/features")
+    assert (unknown.kind, unknown.entity) == ("page", "features")
 
 
 def test_heuristic_layer_types_unparsed_sites():
@@ -269,4 +298,3 @@ def test_crunchbase_funding_and_discover():
     search = parse_url("https://www.crunchbase.com/discover/organization.companies")
     assert search.kind == "search"
     assert search.entity == "organization.companies"
-

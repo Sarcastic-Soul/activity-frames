@@ -359,15 +359,56 @@ def _discord(domain, parts, q):
 
 
 def _slack(domain, parts, q):
-    """Type the browser client without inferring a channel name from IDs."""
-    if domain == "app.slack.com" and parts and parts[0] == "client":
-        # Client URLs are /client/<workspace>/<channel-or-DM>. The IDs are
-        # useful evidence, but the title is the human-readable measured name.
+    """Parse Slack browser and permalink URLs into structural references.
+
+    Slack exposes stable team, conversation, and message identifiers in its
+    URLs, but human-readable conversation names require an authenticated API
+    lookup. Keep this parser deterministic and preserve only URL-contained
+    identifiers:
+      app.slack.com/client/<team>[/<conversation>] -> messaging
+      <workspace>.slack.com/archives/<conversation> -> messaging
+      <workspace>.slack.com/archives/<conversation>/p<ts> -> messaging
+      slack.com/app_redirect?team=...&channel=... -> messaging
+      slack.com/signin                           -> sign_in
+    """
+    if not parts:
+        if domain == "slack.com":
+            return PageRef(kind="home", domain=domain)
+        if domain == "app.slack.com":
+            return PageRef(kind="app", domain=domain)
+        # A bare customer subdomain is a workspace. Reserved Slack service
+        # subdomains are left to the generic fallback instead of mislabelled.
+        workspace = domain.removesuffix(".slack.com")
+        if workspace and workspace not in {"api", "app", "docs", "status"}:
+            return PageRef(kind="messaging", domain=domain, entity=workspace)
+        return None
+
+    head = parts[0]
+    if head in ("signin", "sign-in"):
+        return PageRef(kind="sign_in", domain=domain)
+
+    if head == "app_redirect":
+        team = q.get("team", [""])[0].strip()
+        conversation = q.get("channel", [""])[0].strip()
+        if conversation:
+            entity = f"{team}/{conversation}" if team else conversation
+            return PageRef(kind="messaging", domain=domain, entity=entity)
+        return PageRef(kind="messaging", domain=domain, entity=team or None)
+
+    if head == "client":
         entity = "/".join(parts[1:3]) or None
         return PageRef(kind="messaging", domain=domain, entity=entity)
-    if domain.endswith(".slack.com") and len(parts) > 1 and parts[0] == "archives":
-        # Workspace archive permalinks identify the channel but not its name.
-        return PageRef(kind="messaging", domain=domain, entity=parts[1])
+
+    if head == "archives" and len(parts) >= 2:
+        conversation = parts[1]
+        workspace = domain.removesuffix(".slack.com")
+        prefix = f"{workspace}/" if workspace not in ("", "app") else ""
+        if len(parts) >= 3 and parts[2].startswith("p") and parts[2][1:].isdigit():
+            return PageRef(kind="messaging", domain=domain,
+                           entity=f"{prefix}{conversation}/{parts[2]}")
+        return PageRef(kind="messaging", domain=domain,
+                       entity=f"{prefix}{conversation}")
+
     return None
 
 
