@@ -23,7 +23,7 @@ A document is a single JSON/YAML object:
 schema_version: 1
 generated_at: "2026-07-04T21:14:03Z"     # UTC, ISO-8601
 source:
-  recorder: nocta-recorder                    # schema family of the capture DB
+  recorder: nocta-recorder                # schema family of the capture DB
 window:
   start_utc: "2026-07-04T07:00:00"
   end_utc: "2026-07-05T07:00:00"

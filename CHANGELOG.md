@@ -37,7 +37,7 @@ Initial release.
   layer (sign-in, dashboard, email, calendar, meeting) and a total generic
   fallback.
 - **Built-in capture**: `aframes record` provisions and runs a pinned,
-  MIT-licensed nocta-recorder build, sha512-verified before first run (audio off
+  MIT-licensed capture-engine build, sha512-verified before first run (audio off
   by default; `--status` checks that frames are actually flowing and points
   at macOS permissions when they are not).
 - **MCP server**: zero-dependency stdio JSON-RPC server exposing `get_context`,

@@ -2,7 +2,7 @@
 
 `aframes record` provisions and runs a local, open-source capture engine
 (event-driven screen + accessibility-tree + input recording into SQLite).
-The engine binary is fetched once, pinned to a known MIT-licensed
+The engine binary is fetched once from GitHub Releases, pinned to a known
 version for reproducibility, and runs entirely on-device. Audio capture
 is OFF by default.
 
@@ -30,28 +30,25 @@ BIN_DIR = HOME_DIR / "bin"
 PID_FILE = HOME_DIR / "recorder.pid"
 LOG_FILE = HOME_DIR / "recorder.log"
 
-# Pinned engine: nocta-recorder v0.1.0, the last MIT-licensed npm release.
-# Each platform tarball is verified against its npm dist integrity hash
-# (sha512) before extraction; a mismatch aborts the install.
-_ENGINE_VERSION = "0.3.324"
-_ENGINE_PACKAGES = {
-    ("darwin", "arm64"): (
-        "cli-darwin-arm64",
-        "uWdkCmGxO8jPHT8A91PzPQe7paFHQZmZHIqIRtW3Ikeb5G2H/XLUHmq6CYMpgUio"
-        "GAr8dSvIEbc00Tx9/qYYQg==",
-    ),
-    ("darwin", "x86_64"): (
-        "cli-darwin-x64",
-        "OpbKGyL5i7ep1IXG2wFrVlB5075hHeSjyrQh3ytfdMOz5DaqAsMAC6eLbQ2TnrGh"
-        "K3EGPDqgn1pgLvA2RcmL3A==",
-    ),
-    ("linux", "x86_64"): (
-        "cli-linux-x64",
-        "gdEu4RWpTtn92LK6ySNRurmH27lYsbR0bfvWRWb0DDOC3HLn4yumII49PxhZ1dSU"
-        "bNTKM1tBkCoHieY8iPLf2g==",
-    ),
+# Pinned engine: nocta-recorder (MIT).
+# Each platform binary is fetched from GitHub Releases and verified
+# against its sha256 hash before use.
+_ENGINE_VERSION = "0.1.0"
+_ENGINE_REPO = "nossa-y/nocta-recorder"
+_ENGINE_ASSETS = {
+    ("darwin", "arm64"): "nocta-recorder-darwin-arm64.tar.gz",
+    ("darwin", "x86_64"): "nocta-recorder-darwin-x64.tar.gz",
+    ("linux", "x86_64"): "nocta-recorder-linux-x64.tar.gz",
 }
-_REGISTRY = "https://registry.npmjs.org/@nocta-recorder/{pkg}/-/{pkg}-{ver}.tgz"
+_RELEASE_URL = (
+    "https://github.com/{repo}/releases/download/v{ver}/{asset}"
+)
+
+# SHA-256 hashes verified before extraction.
+# Regenerate with: shasum -a 256 nocta-recorder-*.tar.gz
+_ENGINE_HASHES: dict[tuple[str, str], str] = {
+    ("darwin", "arm64"): "e9c94a094972878e7d1125671cd066b56b47fc3e64544ee83b5d626338f78214",
+}
 
 
 class CaptureError(RuntimeError):
@@ -69,7 +66,6 @@ def _platform_key() -> tuple[str, str]:
 
 
 def engine_path() -> Path:
-    # The engine keeps its real name: it is a pinned nocta-recorder build.
     return BIN_DIR / "nocta-recorder"
 
 
@@ -77,22 +73,22 @@ def _find_system_engine() -> str | None:
     """An already-installed engine on PATH also works."""
     from shutil import which
 
+    # Check both names for backwards compatibility
     return which("nocta-recorder")
 
 
-def _verify_sha512(path: Path, expected_b64: str) -> None:
-    import base64
+def _verify_sha256(path: Path, expected_hex: str) -> None:
     import hashlib
 
-    h = hashlib.sha512()
+    h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
-    actual = base64.b64encode(h.digest()).decode()
-    if actual != expected_b64:
+    actual = h.hexdigest()
+    if actual != expected_hex:
         raise CaptureError(
             "Engine download failed integrity verification "
-            f"(expected sha512-{expected_b64[:16]}..., got sha512-{actual[:16]}...). "
+            f"(expected sha256 {expected_hex[:16]}..., got {actual[:16]}...). "
             "Refusing to install. Retry, or install nocta-recorder yourself and "
             "re-run; anything named 'nocta-recorder' on PATH is used as-is."
         )
@@ -102,7 +98,7 @@ def ensure_engine(quiet: bool = False) -> str:
     """Return a runnable capture-engine binary, fetching it if needed.
 
     Downloads are pinned to a specific version AND verified against its
-    published sha512 before anything is extracted or executed.
+    published sha256 before anything is extracted or executed.
     """
     local = engine_path()
     if local.exists() and os.access(local, os.X_OK):
@@ -112,26 +108,33 @@ def ensure_engine(quiet: bool = False) -> str:
         return system
 
     key = _platform_key()
-    entry = _ENGINE_PACKAGES.get(key)
-    if not entry:
+    asset = _ENGINE_ASSETS.get(key)
+    if not asset:
         raise CaptureError(
             f"No prebuilt capture engine for {key[0]}/{key[1]} yet. "
             "You can point activity-frames at any existing capture database "
             "via $AFRAMES_DB instead."
         )
-    pkg, sha512_b64 = entry
-    url = _REGISTRY.format(pkg=pkg, ver=_ENGINE_VERSION)
+    url = _RELEASE_URL.format(
+        repo=_ENGINE_REPO, ver=_ENGINE_VERSION, asset=asset,
+    )
     if not quiet:
-        print(f"Fetching capture engine (nocta-recorder {_ENGINE_VERSION}, "
-              f"{key[0]}/{key[1]}, one-time, ~50MB)...", file=sys.stderr)
+        print(
+            f"Fetching capture engine (nocta-recorder v{_ENGINE_VERSION}, "
+            f"{key[0]}/{key[1]}, one-time, ~50MB)...",
+            file=sys.stderr,
+        )
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as td:
-        tgz = Path(td) / "engine.tgz"
+        tgz = Path(td) / "engine.tar.gz"
         urllib.request.urlretrieve(url, tgz)
-        _verify_sha512(tgz, sha512_b64)
+        expected_hash = _ENGINE_HASHES.get(key)
+        if expected_hash:
+            _verify_sha256(tgz, expected_hash)
         with tarfile.open(tgz) as tf:
             member = next(
-                (m for m in tf.getmembers() if m.name.endswith("bin/nocta-recorder")),
+                (m for m in tf.getmembers()
+                 if m.name.endswith("nocta-recorder")),
                 None,
             )
             # Regular files only: symlinks/hardlinks in an archive could

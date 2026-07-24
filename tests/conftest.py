@@ -1,4 +1,4 @@
-"""Synthetic nocta-recorder-shaped fixture database for tests."""
+"""Synthetic capture-engine-shaped fixture database for tests."""
 from __future__ import annotations
 
 import sqlite3
