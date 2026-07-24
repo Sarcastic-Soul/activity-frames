@@ -12,7 +12,7 @@ def test_document_shape(fixture_db, day_window):
     doc = _doc(fixture_db, day_window)
     d = doc.to_dict()
     assert d["schema_version"] == SCHEMA_VERSION
-    assert d["source"]["recorder"] == "screenpipe"
+    assert d["source"]["recorder"] == "nocta-recorder"
     assert d["coverage"]["frames_analyzed"] > 0
     assert d["frames"], "should produce frames"
     assert d["blind_spots"]

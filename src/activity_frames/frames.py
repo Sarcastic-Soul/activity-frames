@@ -130,7 +130,7 @@ class ActivityDocument:
         d = {
             "schema_version": self.schema_version,
             "generated_at": self.generated_at,
-            "source": {"recorder": "screenpipe"},
+            "source": {"recorder": "nocta-recorder"},
             "window": self.window,
             "coverage": self.coverage,
             "frames": [f.to_dict(include_input_text) for f in self.frames],

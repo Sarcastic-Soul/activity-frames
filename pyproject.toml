@@ -11,7 +11,7 @@ license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Nossa Iyamu" }]
 keywords = [
-    "ai-agents", "mcp", "screenpipe", "episodic-memory", "context",
+    "ai-agents", "mcp", "nocta-recorder", "episodic-memory", "context",
     "screen-activity", "agent-memory", "llm",
 ]
 classifiers = [

@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 DEFAULT_DB_CANDIDATES = (
-    "~/.screenpipe/db.sqlite",       # default engine data dir
-    "~/.screenpipe/screenpipe.db",
+    "~/.nocta/db.sqlite",            # nocta-recorder default
+    "~/.nocta/data/db.sqlite",
 )
 
 
@@ -22,8 +22,8 @@ class RecorderDBNotFound(FileNotFoundError):
 
 
 def find_default_db() -> str:
-    """Locate the capture DB, honoring $AFRAMES_DB (or $SCREENPIPE_DB)."""
-    for var in ("AFRAMES_DB", "SCREENPIPE_DB"):
+    """Locate the capture DB, honoring $AFRAMES_DB."""
+    for var in ("AFRAMES_DB",):
         env = os.environ.get(var)
         if env:
             p = Path(env).expanduser()

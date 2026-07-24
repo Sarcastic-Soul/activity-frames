@@ -23,7 +23,7 @@ A document is a single JSON/YAML object:
 schema_version: 1
 generated_at: "2026-07-04T21:14:03Z"     # UTC, ISO-8601
 source:
-  recorder: screenpipe                    # schema family of the capture DB
+  recorder: nocta-recorder                # schema family of the capture DB
 window:
   start_utc: "2026-07-04T07:00:00"
   end_utc: "2026-07-05T07:00:00"
@@ -139,4 +139,4 @@ A consumer must always be able to strip everything under `inferred` and be left 
 
 ## 9. Sources
 
-The reference producer reads the local SQLite database written by the built-in capture engine (screenpipe, provisioned by `aframes record`). Required surface: a `frames` table (`id`, `timestamp` UTC ISO, `app_name`, `window_name`, `browser_url`, `focused`; `device_name` optional, treated as one stream when absent), and optionally `ui_events` (input volume) and `elements` (click resolution) - the compiler degrades gracefully when the optional tables are missing. Any capture system can be supported by a producer that satisfies sections 2 through 6; `source.recorder` identifies the schema family.
+The reference producer reads the local SQLite database written by the built-in capture engine (nocta-recorder, provisioned by `aframes record`). Required surface: a `frames` table (`id`, `timestamp` UTC ISO, `app_name`, `window_name`, `browser_url`, `focused`; `device_name` optional, treated as one stream when absent), and optionally `ui_events` (input volume) and `elements` (click resolution) - the compiler degrades gracefully when the optional tables are missing. Any capture system can be supported by a producer that satisfies sections 2 through 6; `source.recorder` identifies the schema family.

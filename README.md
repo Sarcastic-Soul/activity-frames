@@ -109,7 +109,7 @@ print(log.context(hours=2))          # paste-ready context block
  (local SQLite)          enrichment, patterns
 ```
 
-The default capture engine is [screenpipe](https://github.com/mediar-ai/screenpipe): `aframes record` provisions a pinned, MIT-licensed build (v0.3.324), verifies its published sha512 before first run, and manages it for you (see [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)). Already running your own recorder? Point `$AFRAMES_DB` at any capture database with compatible `frames` / `ui_events` / `elements` tables and skip `aframes record` entirely.
+The default capture engine is [nocta-recorder](https://github.com/nossa-y/nocta-recorder): `aframes record` provisions a pinned, MIT-licensed build, verifies its published sha512 before first run, and manages it for you (see [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)). Already running your own recorder? Point `$AFRAMES_DB` at any capture database with compatible `frames` / `ui_events` / `elements` tables and skip `aframes record` entirely.
 
 ## CLI
 
