@@ -384,7 +384,7 @@
             "retina_1728x1117": 148.8
           },
           "R_typical": 120.3,
-          "sig_preview": "www.notion.so/* -> calendar.google.com/calendar/u/* -> www.notion.so/to-do-232810"
+          "sig_preview": "www.notion.so/* -> calendar.google.com/calendar/u/* -> www.notion.so/*"
         },
         {
           "granularity": "url",
