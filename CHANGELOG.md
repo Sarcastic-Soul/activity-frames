@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and versions follow semantic
 versioning. The document schema version is tracked separately in [SPEC.md](SPEC.md).
 
+## [0.2.1] - 2026-07-25
+
+### Changed
+- Capture engine is provisioned as [nocta-recorder](https://github.com/nossa-y/nocta-recorder)
+  (MIT); the compiler stays engine-agnostic via `$AFRAMES_DB`.
+
+### Packaging
+- The source distribution ships the library and docs only; research artifacts,
+  the paper, and benchmarks are excluded from the published package.
+
 ## [0.2.0] - 2026-07-16
 
 ### Added

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "activity-frames"
-version = "0.2.0"
+version = "0.2.1"
 description = "Episodic memory for AI agents: compile raw screen capture into structured, deterministic activity frames."
 readme = "README.md"
 license = "MIT"
@@ -44,6 +44,12 @@ Issues = "https://github.com/nossa-y/activity-frames/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/activity_frames"]
+
+# The published source distribution ships the library + docs only. Research
+# artifacts, the paper, and benchmarks are development material (and may carry
+# corpus-derived previews), so they are kept out of the distribution.
+[tool.hatch.build.targets.sdist]
+exclude = ["/research", "/paper", "/benchmark", "/dist", "/.github"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
