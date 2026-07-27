@@ -174,13 +174,42 @@ def deopt_resolve(items, target, role):
         return None
 
 
-def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False):
+def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=False):
+    """Execute (or rehearse) a plan.
+
+    Modes:
+      dry_run=True             fully static: ground every step against the
+                               CURRENT page. Structurally pessimistic for
+                               multi-page plans (later pages' steps cannot
+                               ground yet) - use nav_dry for those.
+      nav_dry=True             rehearsal: navigate ops EXECUTE (read-only page
+                               loads), click/type ops are grounded per page but
+                               never acted. The honest pre-flight for a
+                               multi-page plan.
+      both False (--execute)   live run.
+    """
     steps_out = []
+    acting = not dry_run and not nav_dry
     for i, step in enumerate(plan):
-        if i and not dry_run:
+        op = step.get("op")
+        if i and (acting or (nav_dry and op == "navigate")):
             pace(1.5, 3.0)          # let the previous action's DOM settle + human pacing
         target = step.get("target") or (step.get("guard") or {}).get("expect_element") or ""
         role = step.get("role") or (step.get("guard") or {}).get("expect_role") or ""
+
+        # navigate: no element to ground - the URL is the instruction. Executes
+        # in live AND nav-dry modes (page loads are read-only rehearsal).
+        if op == "navigate":
+            rec = {"i": i, "op": "navigate", "target": target, "tier": 0,
+                   "ref": None, "acted": False, "deopt": False,
+                   "deopt_recovered": False, "blocked": False}
+            if (acting or nav_dry) and target:
+                ab("open", target, timeout=45)
+                pace(1.0, 2.0)
+                rec["acted"] = True
+            steps_out.append(rec)
+            continue
+
         snap = parse_snapshot(snapshot())
         it, tier = locate(snap, target, role, step.get("ocr_text", ""))
         if not it and deopt:                 # tier 1/2 missed -> LLM deopt step
@@ -203,7 +232,7 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False):
             rec["reason"] = f"destructive verb blocked: {nm}"
             steps_out.append(rec)
             continue
-        if not dry_run:
+        if acting:
             if step.get("op") == "type":
                 ab("click", it["ref"]); pace(1, 2)
                 ab("type", it["ref"], step.get("value", ""))
@@ -220,7 +249,8 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False):
         "blocked": sum(s["blocked"] for s in steps_out),
         "acted": sum(s["acted"] for s in steps_out),
     }
-    return {"mode": "dry_run" if dry_run else "executed", "summary": summary, "steps": steps_out}
+    mode = "executed" if acting else ("nav_dry" if nav_dry else "dry_run")
+    return {"mode": mode, "summary": summary, "steps": steps_out}
 
 
 # ---- offline self-test (no browser) -----------------------------------------
@@ -275,6 +305,7 @@ if __name__ == "__main__":
     plan = json.load(open(sys.argv[1]))
     # SAFE BY DEFAULT: dry-run unless --execute is passed. This tool drives a REAL browser,
     # so live clicks must be opted into explicitly (a bare run never acts).
-    print(json.dumps(run_plan(plan, dry_run="--execute" not in sys.argv,
+    print(json.dumps(run_plan(plan, dry_run="--execute" not in sys.argv and "--nav-dry" not in sys.argv,
+                              nav_dry="--nav-dry" in sys.argv,
                               allow_destructive="--allow-destructive" in sys.argv,
                               deopt="--deopt" in sys.argv), indent=2))
