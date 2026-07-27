@@ -94,8 +94,11 @@ def main(argv: list[str] | None = None) -> int:
 
     p_steps = sub.add_parser(
         "steps", help="one frame's ordered click-by-click script (replay view)")
-    p_steps.add_argument("--frame", required=True,
+    p_steps.add_argument("--frame",
                          help='frame id from `aframes activity`, e.g. f-0002')
+    p_steps.add_argument("--find", metavar="QUERY",
+                         help='resolve a task query ("linkedin invoice") to the '
+                              "demonstrated frame + from_url slice, no frame id needed")
     p_steps.add_argument("--hours", type=float, default=3.0,
                          help="window to index frames over (default 3)")
     p_steps.add_argument("--day", help="local day YYYY-MM-DD (overrides --hours)")
@@ -139,6 +142,25 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "steps":
+        if args.find:
+            import json
+
+            from .steps import find_frame
+
+            try:
+                log = ActivityLog(args.db)
+            except RecorderDBNotFound as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 2
+            doc = (log.day(args.day, min_minutes=0.5) if args.day
+                   else log.recent(args.hours, min_minutes=0.5))
+            out = find_frame(log.db, doc, args.find)
+            print(json.dumps(out, indent=2, ensure_ascii=False))
+            return 0 if "error" not in out else 3
+        if not args.frame:
+            print("error: pass --frame f-NNNN or --find \"task query\"",
+                  file=sys.stderr)
+            return 2
         from .mcp_server import MCPServer
 
         server = MCPServer(args.db, None)

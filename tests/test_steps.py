@@ -149,3 +149,30 @@ def test_get_steps_unknown_frame(tmp_path):
         ["result"]["content"][0]["text"]
     )
     assert "error" in out and "available" in out
+
+
+def test_find_frame_resolves_task_query(tmp_path):
+    from activity_frames.steps import find_frame
+
+    s = _make_server(_steps_db(tmp_path))
+    doc = s.log.day("2026-07-04")
+    out = find_frame(s.log.db, doc, "get my acme invoice")
+    assert "error" not in out
+    assert out["frame"] == f"f-{doc.frames[0].index:04d}"
+    # "invoice" matched the /invoices URL via the synonym fan-out is not even
+    # needed here (direct hit); from_url slices at the first matching URL
+    assert out["from_url"] == "login"
+    assert out["task_clicks"] == 2  # Sign in + resolved Download PDF
+
+
+def test_find_frame_requires_full_coverage(tmp_path):
+    from activity_frames.steps import find_frame
+
+    s = _make_server(_steps_db(tmp_path))
+    doc = s.log.day("2026-07-04")
+    # "netflix" never appears anywhere: the frame must NOT match on
+    # "billing" alone (full token-group coverage required)
+    out = find_frame(s.log.db, doc, "netflix billing")
+    assert "error" in out
+    # stopword-only queries fail loudly instead of matching everything
+    assert "error" in find_frame(s.log.db, doc, "replay my last run again")

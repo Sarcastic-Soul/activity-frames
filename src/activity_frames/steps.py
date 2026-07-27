@@ -22,8 +22,10 @@ only.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from ._time import fmt_local_hms, parse_epoch
 from .db import Database
@@ -200,3 +202,121 @@ def steps_for_frame(
         "unresolved_clicks": unresolved,
         "truncated": truncated,
     }
+
+
+# ---- query -> frame resolution (deterministic, no model) ---------------------
+
+_STOPWORDS = frozenset(
+    "a an and the my our your i me we to of for in on at with get got grab fetch "
+    "do redo run task again it this that last latest new recent please "
+    "deterministic deterministically replay rerun using use activity frames frame".split()
+)
+
+# Small, curated fan-out so everyday task words match the artifacts they produce
+# on screen (an "invoice" task navigates billing/purchase/payment surfaces).
+_SYNONYMS = {
+    "invoice": ("purchase", "purchases", "billing", "payment", "payments",
+                "transaction", "transactions", "receipt", "receipts", "order"),
+    "receipt": ("invoice", "purchase", "purchases", "billing", "payment",
+                "payments", "transaction", "transactions"),
+    "bill": ("billing", "invoice", "payment", "payments", "purchase"),
+    "email": ("mail", "gmail", "inbox", "compose", "message", "thread"),
+    "meeting": ("calendar", "event", "invite", "schedule"),
+}
+
+
+def find_frame(db: Database, doc, query: str, *, max_steps: int = 250) -> dict:
+    """Resolve a natural-language task query to the demonstrated frame.
+
+    Deterministic lexical scoring, zero model calls: each query token (plus a
+    small synonym fan-out) is matched per frame against step URLs (+3), step
+    target texts (+2), and the app name (+1). Also suggests ``from_url`` - the
+    earliest step URL matching the query - so callers can slice off pre-task
+    wandering. This keeps retrieval out of agent context: the caller gets one
+    frame id, not the whole compiled day.
+    """
+    tokens = [t for t in re.findall(r"[a-z0-9]+", (query or "").lower())
+              if t not in _STOPWORDS]
+    if not tokens:
+        return {"error": "empty query after stopwords", "query": query}
+    groups = []
+    for t in tokens:
+        syn = _SYNONYMS.get(t) or _SYNONYMS.get(t.rstrip("s")) or ()
+        groups.append((t, *syn))
+    flat = tuple(v for grp in groups for v in grp)
+
+    groundable_roles = {"Button", "Link", "TextField", "TextArea", "RadioButton",
+                        "CheckBox", "MenuItem", "MenuButton", "PopUpButton",
+                        "Tab", "Cell", "StaticText"}
+    best: dict | None = None
+    for fr in doc.frames:
+        out = steps_for_frame(db, fr.app, fr.evidence,
+                              include_text=False, max_steps=max_steps)
+        steps = out.get("steps") or []
+        if not steps:
+            continue
+        hay_url = " ".join(s.get("url", "") for s in steps).lower()
+        hay_txt = " ".join(s.get("target") or "" for s in steps).lower()
+        hay_app = (fr.app or "").lower()
+        # FULL COVERAGE required: every query token group must match somewhere
+        # in this frame, else a frame that merely brushes one word of the task
+        # could outrank the real demonstration.
+        score, covered = 0, True
+        for grp in groups:
+            if any(v in hay_url for v in grp):
+                score += 3
+            elif any(v in hay_txt for v in grp):
+                score += 2
+            elif any(v in hay_app for v in grp):
+                score += 1
+            else:
+                covered = False
+                break
+        if not covered:
+            continue
+        from_url = None
+        for s in steps:
+            u = (s.get("url") or "").lower()
+            if u and any(v in u for v in flat):
+                path = urlparse(s["url"]).path.strip("/")
+                from_url = path or s["url"]
+                break
+        # a real demonstration = replayable clicks made ON task-matching pages
+        # (groundable role or automation id, page URL context matches query)
+        cur_url, task_clicks = "", 0
+        for s in steps:
+            if s.get("url"):
+                cur_url = s["url"].lower()
+            t = (s.get("target") or "").strip()
+            if (s.get("op") == "click"
+                    and any(v in cur_url for v in flat)
+                    and (s.get("role") in groundable_roles or s.get("automation_id"))
+                    and t and "\n" not in t and len(t) <= 80
+                    and t.lower().strip(".…") != "loading"):
+                task_clicks += 1
+        if task_clicks < 1:
+            continue
+        cand = {
+            "frame": f"f-{fr.index:04d}",
+            "app": fr.app,
+            "score": score,
+            "task_clicks": task_clicks,
+            "from_url": from_url,
+            "window_utc": out.get("task", {}).get("window_utc"),
+            "step_count": out.get("step_count"),
+        }
+        # among full-coverage demonstrations, RECENCY wins: "replay my X run"
+        # means the latest time the user actually did X
+        if best is None or fr.index > best["_index"]:
+            cand["_index"] = fr.index
+            best = cand
+    if best is None:
+        return {
+            "error": "no demonstrated frame matched the query",
+            "query": query,
+            "tokens": tokens,
+            "hint": "widen --hours, or check `aframes context` for what was captured",
+        }
+    best.pop("_index", None)
+    best["query"] = query
+    return best
