@@ -221,8 +221,19 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=
     """
     steps_out = []
     acting = not dry_run and not nav_dry
+    # hard wall-clock cap so a wedged browser can never hang a live demo: past
+    # the deadline, remaining steps are recorded aborted and the run returns.
+    deadline = time.monotonic() + float(os.environ.get("NOCTA_REPLAY_DEADLINE", "240"))
+    aborted = False
     for i, step in enumerate(plan):
         op = step.get("op")
+        if (acting or nav_dry) and time.monotonic() > deadline:
+            steps_out.append({"i": i, "op": op, "target": step.get("target") or "",
+                              "tier": 0, "ref": None, "acted": False, "deopt": False,
+                              "deopt_recovered": False, "blocked": False,
+                              "aborted": "deadline"})
+            aborted = True
+            continue
         if i and (acting or (nav_dry and op == "navigate")):
             pace(1.5, 3.0)          # let the previous action's DOM settle + human pacing
         target = step.get("target") or (step.get("guard") or {}).get("expect_element") or ""
@@ -308,8 +319,11 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=
         "skipped_soft": sum(bool(s.get("skipped_soft")) for s in steps_out),
         "blocked": sum(s["blocked"] for s in steps_out),
         "acted": sum(s["acted"] for s in steps_out),
+        "aborted": sum(1 for s in steps_out if s.get("aborted")),
     }
     mode = "executed" if acting else ("nav_dry" if nav_dry else "dry_run")
+    if aborted:
+        mode += "+deadline-abort"
     return {"mode": mode, "summary": summary, "steps": steps_out}
 
 
