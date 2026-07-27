@@ -129,6 +129,37 @@ def pace(lo=1.0, hi=3.0):
     time.sleep(random.uniform(lo, hi))
 
 
+# SPA hydration: `open` returns when navigation commits, long before content
+# exists. Grounding against the skeleton is a guaranteed false miss (the
+# recorded corpus even contains a "Loading" AXGroup the user clicked). So after
+# a navigate we poll until the page looks real, and a missed click re-snapshots
+# before declaring failure.
+_SKELETON_NAMES = frozenset({"loading", "loading…", "loading..."})
+HYDRATE_TIMEOUT_S = float(os.environ.get("NOCTA_HYDRATE_TIMEOUT", "12"))
+
+
+def _looks_hydrated(items):
+    named = sum(1 for it in items if it["name"])
+    skeleton = any((it["name"] or "").strip().lower() in _SKELETON_NAMES
+                   for it in items)
+    return named >= 12 and not skeleton
+
+
+def wait_hydrated(target="", role="", ocr="", timeout_s=None, poll_s=1.2):
+    """Poll the snapshot until the lookahead target grounds or the page looks
+    hydrated; return the last parsed snapshot either way (bounded, no model)."""
+    deadline = time.monotonic() + (HYDRATE_TIMEOUT_S if timeout_s is None else timeout_s)
+    snap = parse_snapshot(snapshot())
+    while time.monotonic() < deadline:
+        if target and locate(snap, target, role, ocr)[0]:
+            return snap
+        if not target and _looks_hydrated(snap):
+            return snap
+        time.sleep(poll_s)
+        snap = parse_snapshot(snapshot())
+    return snap
+
+
 def ensure_daemon(profile="Profile 3", url="about:blank"):
     """Reproduce the daemon-reuse gotcha (docs/lessons/browser.md): a headed real-Chrome
     daemon must be launched ONCE bound with --profile ... --headed and then REUSED; if it
@@ -206,12 +237,30 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=
             if (acting or nav_dry) and target:
                 ab("open", target, timeout=45)
                 pace(1.0, 2.0)
+                # settle until the NEXT actionable step grounds (or the page
+                # looks hydrated) - SPAs render seconds after `open` returns
+                look = next((s for s in plan[i + 1:] if s.get("op") != "navigate"), None)
+                snap = wait_hydrated(
+                    (look or {}).get("target") or "",
+                    (look or {}).get("role") or "",
+                    (look or {}).get("ocr_text") or "")
                 rec["acted"] = True
+                rec["page_elements"] = sum(1 for it in snap if it["name"])
+                if rec["page_elements"] < 5:
+                    rec["warning"] = "page barely hydrated (auth wall / wrong profile / slow load?)"
             steps_out.append(rec)
             continue
 
         snap = parse_snapshot(snapshot())
         it, tier = locate(snap, target, role, step.get("ocr_text", ""))
+        if not it and (acting or nav_dry):
+            # miss on a live page: re-snapshot before giving up (late render)
+            for backoff in (1.5, 3.0):
+                time.sleep(backoff)
+                snap = parse_snapshot(snapshot())
+                it, tier = locate(snap, target, role, step.get("ocr_text", ""))
+                if it:
+                    break
         if not it and deopt:                 # tier 1/2 missed -> LLM deopt step
             dref = deopt_resolve(snap, target, role)
             if dref:
@@ -220,7 +269,17 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=
                "ref": it["ref"] if it else None, "acted": False,
                "deopt": False, "deopt_recovered": tier == -1, "blocked": False}
         if not it:
+            # a click whose recorded effect is the very next navigate is
+            # SUBSUMED: replaying the navigate reproduces the transition, so a
+            # miss here is a skip, not a failure (converter marks these "soft")
+            if step.get("soft"):
+                rec["skipped_soft"] = True
+                steps_out.append(rec)
+                continue
             rec["deopt"] = True  # unresolved even after deopt
+            if os.environ.get("NOCTA_REPLAY_DEBUG"):
+                rec["page_sample"] = [f'{it2["role"]}:{it2["name"][:40]}'
+                                      for it2 in snap if it2["name"]][:20]
             steps_out.append(rec)
             continue
         nm = it["name"] or target
@@ -246,6 +305,7 @@ def run_plan(plan, dry_run=False, allow_destructive=False, deopt=False, nav_dry=
         "tier2": sum(s["tier"] == 2 for s in steps_out),
         "deopt_recovered": sum(bool(s.get("deopt_recovered")) for s in steps_out),
         "deopt_unresolved": sum(s["deopt"] for s in steps_out),
+        "skipped_soft": sum(bool(s.get("skipped_soft")) for s in steps_out),
         "blocked": sum(s["blocked"] for s in steps_out),
         "acted": sum(s["acted"] for s in steps_out),
     }
@@ -295,17 +355,67 @@ def selftest():
     gok = all(bypass) and all(safe)
     ok = ok and gok
     print(f"  {'PASS' if gok else 'FAIL'}  destructive-guard: blocks ‎/space/case-obfuscated verbs, allows safe names")
-    print("SELFTEST", "PASS" if ok else "FAIL", "- grounding ladder + normalized safety guard")
+
+    # nav-dry hydration/retry/soft simulation: skeleton snapshots first, real
+    # page later - the plan must still ground (no browser: everything patched)
+    hok = _selftest_navdry()
+    ok = ok and hok
+    print(f"  {'PASS' if hok else 'FAIL'}  nav-dry: waits through skeleton, retries misses, skips soft steps")
+    print("SELFTEST", "PASS" if ok else "FAIL", "- grounding ladder + normalized safety guard + nav-dry hydration")
     sys.exit(0 if ok else 1)
+
+
+def _selftest_navdry():
+    global snapshot, ab, pace, HYDRATE_TIMEOUT_S
+    skeleton = '- generic [ref=e1]\n  - group "Loading" [ref=e2]\n'
+    hydrated = "- generic [ref=e1]\n" + "".join(
+        f'  - button "Filler {n}" [ref=e{n + 10}]\n' for n in range(14)
+    ) + '  - link "View all transactions for this purchase" [ref=e99]\n'
+    seq = [skeleton, skeleton, hydrated]
+    opens = []
+    orig = (snapshot, ab, pace, time.sleep, HYDRATE_TIMEOUT_S)
+    snapshot = lambda: seq.pop(0) if seq else hydrated          # noqa: E731
+    ab = lambda *a, **k: (opens.append(a) if a and a[0] == "open" else None,  # noqa: E731
+                          subprocess.CompletedProcess(a, 0, "", ""))[1]
+    pace = lambda *a, **k: None                                  # noqa: E731
+    time.sleep = lambda *_: None
+    HYDRATE_TIMEOUT_S = 0.2
+    try:
+        out = run_plan(
+            [
+                {"op": "navigate", "target": "https://example.com/billing"},
+                {"op": "click", "target": "Row that navigated", "role": "AXCell",
+                 "soft": True},                       # absent -> skipped, not failed
+                {"op": "click", "target": "View all transactions for this purchase",
+                 "role": "AXLink"},                   # grounds after hydration wait
+            ],
+            nav_dry=True,
+        )
+        s = out["summary"]
+        return (out["mode"] == "nav_dry" and opens
+                and s["acted"] == 1 and s["tier1"] == 1
+                and s["skipped_soft"] == 1 and s["deopt_unresolved"] == 0)
+    finally:
+        snapshot, ab, pace, time.sleep, HYDRATE_TIMEOUT_S = orig
 
 
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         selftest()
     plan = json.load(open(sys.argv[1]))
+    live = "--execute" in sys.argv
+    nav = "--nav-dry" in sys.argv
+    profile = "Profile 3"
+    if "--profile" in sys.argv:
+        profile = sys.argv[sys.argv.index("--profile") + 1]
+    if live or nav:
+        # bind-or-reuse BEFORE the first open: an `open` with no daemon silently
+        # spawns a headless throwaway and every snapshot lies (see ensure_daemon)
+        state = ensure_daemon(profile)
+        print(f"# daemon: {state}", file=sys.stderr)
     # SAFE BY DEFAULT: dry-run unless --execute is passed. This tool drives a REAL browser,
     # so live clicks must be opted into explicitly (a bare run never acts).
-    print(json.dumps(run_plan(plan, dry_run="--execute" not in sys.argv and "--nav-dry" not in sys.argv,
-                              nav_dry="--nav-dry" in sys.argv,
+    print(json.dumps(run_plan(plan, dry_run=not live and not nav,
+                              nav_dry=nav,
                               allow_destructive="--allow-destructive" in sys.argv,
                               deopt="--deopt" in sys.argv), indent=2))
