@@ -98,7 +98,7 @@ def test_reddit():
     post = parse_url("https://www.reddit.com/r/AskProgramming/comments/abc/some_title/")
     assert post.kind == "post"
     u = parse_url("https://www.reddit.com/user/some_user/")
-    assert (u.kind, u.entity) == ("profile", "u/spez")
+    assert (u.kind, u.entity) == ("profile", "u/some_user")
 
 
 def test_google_maps_and_products():
