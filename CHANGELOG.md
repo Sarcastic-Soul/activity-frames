@@ -4,7 +4,47 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and versions follow semantic
 versioning. The document schema version is tracked separately in [SPEC.md](SPEC.md).
 
+## [0.2.2] - 2026-07-28
+
+### Added
+- **`get_steps` MCP tool and `aframes steps` CLI**: expand one activity frame
+  into its ordered click-by-click script (clicks with element name / role /
+  AXIdentifier / URL, typed runs, pastes, focus changes) - the replay view of
+  a demonstrated run. `aframes steps --find "task query"` resolves a
+  natural-language task to the demonstrated frame without a frame id.
+- Entity parsers for Atlassian (Jira/Confluence).
+- `--debug` CLI flag: include sessionization debug info (why segments split
+  or merge).
+- End-to-end MCP agent integration example under `examples/` (#19).
+- Date-range header on `aframes patterns` output, and an explicit message
+  when no patterns are detected (#29).
+
+### Changed
+- Engine downloads fail closed: sha256 verification now covers every
+  published nocta-recorder build, and `aframes record` refuses to install a
+  build it has no pinned hash for.
+- The package version is single-sourced from `activity_frames.__version__`
+  (hatchling dynamic version).
+- The default capture database is resolved by newest mtime instead of
+  candidate order.
+
+### Fixed
+- O(n²) page scan in `_pages_for_segment()`: large sessions compile
+  measurably faster, byte-identical output (#26).
+- Product Hunt profile URLs (`producthunt.com/@user`) now parse to a
+  `profile` page reference.
+
+### Docs
+- `aframes comms` documented in the README CLI block.
+- SPEC dwell and flicker-merge formulas aligned with the reference
+  implementation (the final frame of a session contributes 0 dwell; a
+  flicker's recorded `seconds` is its measured active time and may exceed
+  the 20s span threshold).
+
 ## [0.2.1] - 2026-07-25
+
+### Added
+- Entity parsers for GitLab, Slack, Linear, and Crunchbase.
 
 ### Changed
 - Capture engine is provisioned as [nocta-recorder](https://github.com/nossa-y/nocta-recorder)
@@ -17,8 +57,8 @@ versioning. The document schema version is tracked separately in [SPEC.md](SPEC.
 ## [0.2.0] - 2026-07-16
 
 ### Added
-- **Communications view**: `ActivityLog.communications()` /
-  `comm_surfaces()`, the `get_communications` MCP tool, and the
+- **Communications view**: `ActivityLog.communications()` and the
+  module-level `comm_surfaces()`, the `get_communications` MCP tool, and the
   `aframes comms` CLI command — email/messaging/notification surfaces
   with the window titles measured on each (timing, counts, frame-id
   evidence). Titles only, measured tier: message bodies are never read;
@@ -43,11 +83,11 @@ Initial release.
 - **Entity typing**: deterministic URL parsers for LinkedIn, GitHub, Google
   (Search/Docs/Gmail/Maps/Meet/Calendar), YouTube, X, Instagram, Reddit, Luma,
   Partiful, Product Hunt, Vercel, Supabase, Stripe, Discord, Notion, Figma,
-  Stack Overflow, Calendly, and AI-chat sites, plus a subdomain/path heuristic
-  layer (sign-in, dashboard, email, calendar, meeting) and a total generic
-  fallback.
+  Stack Overflow, Calendly, AI-chat sites, and localhost, plus a
+  subdomain/path heuristic layer (sign-in, dashboard, email, calendar,
+  meeting) and a total generic fallback.
 - **Built-in capture**: `aframes record` provisions and runs a pinned,
-  MIT-licensed capture-engine build, sha512-verified before first run (audio off
+  MIT-licensed capture-engine build, sha256-verified before first run (audio off
   by default; `--status` checks that frames are actually flowing and points
   at macOS permissions when they are not).
 - **MCP server**: zero-dependency stdio JSON-RPC server exposing `get_context`,
@@ -57,4 +97,7 @@ Initial release.
 - **Python API** (`ActivityLog`) and workflow-pattern detection.
 - Test suite (58 tests) and CI on macOS and Linux (Python 3.9, 3.11, 3.13).
 
+[0.2.2]: https://github.com/nossa-y/activity-frames/releases/tag/v0.2.2
+[0.2.1]: https://github.com/nossa-y/activity-frames/releases/tag/v0.2.1
+[0.2.0]: https://github.com/nossa-y/activity-frames/releases/tag/v0.2.0
 [0.1.0]: https://github.com/nossa-y/activity-frames/releases/tag/v0.1.0

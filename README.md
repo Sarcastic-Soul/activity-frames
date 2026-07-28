@@ -49,11 +49,12 @@ And into a compact context block for any system prompt:
 
 ```
 USER ACTIVITY (2026-07-04, local time; measured from screen capture, no interpretation):
-coverage: 09:12-18:47, 342 active min, 11 apps
+coverage: 09:12-20:42, 342 active min, 11 apps
 away: 12:30-13:15 (45m)
+away: 18:47-20:24 (97m)
 - 09:12-09:58 Cursor (46.2m): main.py - api
 - 10:01-10:44 Google Chrome/github.com (41.3m): pull_request:acme/api#412; code:acme/api
-- 20:24-20:42 Google Chrome/linkedin.com (18.0m): people_search:cto berlin x2; profile:john-doe; company:acme-ai
+- 20:24-20:42 Google Chrome/linkedin.com (18.0m): people_search:cto berlin x2; profile:john-doe; company:acme-ai; typed ~214 chars
 ```
 
 Drop that into a prompt and your agent knows your day. A full day compiles in under a second and costs zero tokens.
@@ -88,7 +89,7 @@ Passively-captured activity becomes **deterministic action** - and the cheapest 
 claude mcp add activity-frames -- aframes mcp
 ```
 
-Any MCP client works: command `aframes`, args `["mcp"]`. Five tools: `get_context`, `get_activity`, `get_day_summary`, `get_patterns` (repetitive-workflow detection: repeated clicks, URL loops, daily habits), and `get_communications` (email/messaging surfaces with the window titles seen on each — for many clients the title carries the subject or conversation name; a client that doesn't title its windows with the conversation leaves only its presence to report. Titles only, measured tier: message bodies are never read).
+Any MCP client works: command `aframes`, args `["mcp"]`. Six tools: `get_context`, `get_activity`, `get_steps` (expand one activity frame into its ordered click-by-click script - the replay view of a demonstrated run, so an agent can repeat the task instead of re-deriving it), `get_day_summary`, `get_patterns` (repetitive-workflow detection: repeated clicks, action sequences, URL patterns, app-switching loops, daily habits), and `get_communications` (email/messaging surfaces with the window titles seen on each — for many clients the title carries the subject or conversation name; a client that doesn't title its windows with the conversation leaves only its presence to report. Titles only, measured tier: message bodies are never read).
 
 ## Use it from Python
 
@@ -121,7 +122,7 @@ print(log.context(hours=2))          # paste-ready context block
  (local SQLite)          enrichment, patterns
 ```
 
-The default capture engine is [nocta-recorder](https://github.com/nossa-y/nocta-recorder): `aframes record` provisions a pinned, MIT-licensed build, verifies its published sha512 before first run, and manages it for you (see [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)). Already running your own recorder? Point `$AFRAMES_DB` at any capture database with compatible `frames` / `ui_events` / `elements` tables and skip `aframes record` entirely.
+The default capture engine is [nocta-recorder](https://github.com/nossa-y/nocta-recorder): `aframes record` provisions a pinned, MIT-licensed build, verifies its published sha256 before first run, and manages it for you (see [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)); a `nocta-recorder` binary already on your PATH is used as-is (bring your own build). Already running your own recorder? Point `$AFRAMES_DB` at any capture database with compatible `frames` / `ui_events` / `elements` tables and skip `aframes record` entirely.
 
 ## CLI
 
@@ -132,13 +133,17 @@ aframes day 2026-07-03 -f json   # any day, JSON
 aframes context --hours 3        # agent context block
 aframes apps                     # per-app time ledger
 aframes patterns --days 7        # repetitive workflow detection
+aframes comms --hours 24         # email/messaging surfaces + titles seen
+aframes steps --frame f-0002     # one frame's click-by-click script (or --find "task query")
 aframes mcp                      # MCP stdio server
 ```
 
 *YAML output uses PyYAML (`pip install "activity-frames[yaml]"`); without it the CLI falls back to JSON.
 
+Run `aframes <cmd> --help` for the full flag set (`--db`, `--include-text`, `--layout`, ...).
+
 ## Status
 
-v0.2. Developed and tested on macOS (Apple Silicon); Intel macOS and Linux x64 engine builds exist but are less exercised - reports welcome. Entity parsers cover LinkedIn, GitHub, GitLab, Google (Search/Docs/Gmail/Maps/Meet/Calendar), YouTube, X, Instagram, Reddit, Luma, Partiful, Product Hunt, Vercel, Supabase, Stripe, Discord, Slack, Notion, Figma, Linear, Stack Overflow, Calendly, Crunchbase, Atlassian (Jira/Confluence), ChatGPT/Claude, localhost; unknown sites fall back to a generic page reference - always total, never lossy. Issues and parser PRs welcome.
+v0.2. Developed and tested on macOS (Apple Silicon); an Intel macOS engine build is published but less exercised - reports welcome. No prebuilt Linux engine yet: on Linux, run your own recorder and point `$AFRAMES_DB` at its database (the compiler itself is tested on Linux in CI). Entity parsers cover LinkedIn, GitHub, GitLab, Google (Search/Docs/Gmail/Maps/Meet/Calendar), YouTube, X, Instagram, Reddit, Luma, Partiful, Product Hunt, Vercel, Supabase, Stripe (dashboard), Discord, Slack, Notion, Figma, Linear, Stack Overflow, Calendly, Crunchbase, Atlassian (Jira/Confluence), ChatGPT/Claude, localhost; unknown sites fall back to a generic page reference - always total, never lossy. Issues and parser PRs welcome.
 
 Built by [Nossa](https://github.com/nossa-y), maker of [Nocta](https://usenocta.app). MIT.

@@ -1,4 +1,4 @@
--- Routine DB schema (per the routine-DB design notes).
+-- Routine DB schema: a two-tier routine store (deterministic mining + LLM columns).
 -- Built ~95% deterministically by build_routine_db.py. The Tier-2 (LLM) columns
 -- exist here but are LEFT NULL by the deterministic build; a later idle-time
 -- semantic pass fills them. Raw capture stays the source of truth - this DB only

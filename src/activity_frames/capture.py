@@ -38,16 +38,18 @@ _ENGINE_REPO = "nossa-y/nocta-recorder"
 _ENGINE_ASSETS = {
     ("darwin", "arm64"): "nocta-recorder-darwin-arm64.tar.gz",
     ("darwin", "x86_64"): "nocta-recorder-darwin-x64.tar.gz",
-    ("linux", "x86_64"): "nocta-recorder-linux-x64.tar.gz",
 }
 _RELEASE_URL = (
     "https://github.com/{repo}/releases/download/v{ver}/{asset}"
 )
 
-# SHA-256 hashes verified before extraction.
+# SHA-256 hashes verified before extraction. Every platform published in
+# _ENGINE_ASSETS must have a pinned hash here; ensure_engine refuses to
+# install a build it cannot verify.
 # Regenerate with: shasum -a 256 nocta-recorder-*.tar.gz
 _ENGINE_HASHES: dict[tuple[str, str], str] = {
-    ("darwin", "arm64"): "e9c94a094972878e7d1125671cd066b56b47fc3e64544ee83b5d626338f78214",
+    ("darwin", "arm64"): "be309edee390a08e24acc24e061a04304a37148d19e5aa52cb3aa1c16e279dc2",
+    ("darwin", "x86_64"): "bc7e9bd5d9b38c2dfeebfca891aefc9b0289a9ebc176d1b8792813a297e41f4e",
 }
 
 
@@ -115,6 +117,14 @@ def ensure_engine(quiet: bool = False) -> str:
             "You can point activity-frames at any existing capture database "
             "via $AFRAMES_DB instead."
         )
+    expected_hash = _ENGINE_HASHES.get(key)
+    if not expected_hash:
+        raise CaptureError(
+            f"No pinned sha256 for the {key[0]}/{key[1]} engine build in this "
+            "release of activity-frames; refusing to install an unverified "
+            "binary. Upgrade activity-frames, or install nocta-recorder "
+            "yourself - anything named 'nocta-recorder' on PATH is used as-is."
+        )
     url = _RELEASE_URL.format(
         repo=_ENGINE_REPO, ver=_ENGINE_VERSION, asset=asset,
     )
@@ -128,9 +138,7 @@ def ensure_engine(quiet: bool = False) -> str:
     with tempfile.TemporaryDirectory() as td:
         tgz = Path(td) / "engine.tar.gz"
         urllib.request.urlretrieve(url, tgz)
-        expected_hash = _ENGINE_HASHES.get(key)
-        if expected_hash:
-            _verify_sha256(tgz, expected_hash)
+        _verify_sha256(tgz, expected_hash)
         with tarfile.open(tgz) as tf:
             member = next(
                 (m for m in tf.getmembers()

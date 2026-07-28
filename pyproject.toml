@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "activity-frames"
-version = "0.2.1"
+dynamic = ["version"]
 description = "Episodic memory for AI agents: compile raw screen capture into structured, deterministic activity frames."
 readme = "README.md"
 license = "MIT"
@@ -19,7 +19,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
-    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -41,6 +40,9 @@ aframes = "activity_frames.cli:main"
 Homepage = "https://github.com/nossa-y/activity-frames"
 Repository = "https://github.com/nossa-y/activity-frames"
 Issues = "https://github.com/nossa-y/activity-frames/issues"
+
+[tool.hatch.version]
+path = "src/activity_frames/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/activity_frames"]

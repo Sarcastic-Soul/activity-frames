@@ -1,8 +1,8 @@
 """Routine Overhead Ratio (R) on a PUBLIC dataset - the n=2 replication.
 
-Purpose: the flagship instrument R was measured on ONE private 61-day screen
-corpus (median ~343x action / ~198x url). A single subject can always be an
-artifact of one user. This script re-measures R on a *public* human-computer
+Purpose: the flagship instrument R was measured on ONE private screen corpus
+(51 active days over a 72-day span; median ~343x action / ~198x url). A single
+subject can always be an artifact of one user. This script re-measures R on a *public* human-computer
 interaction dataset - Mind2Web (osunlp/Mind2Web, CC-BY-4.0, 2,000+ real web
 tasks crowdsourced across 137 websites / 31 domains) - so the result stops
 being n=1.
@@ -84,7 +84,7 @@ CACHE = os.environ.get("M2W_CACHE",
 
 # private-corpus reference numbers (RESULTS.md / results_overhead.json)
 PRIVATE_REF = {
-    "corpus": "private 61-day screen-capture corpus, single user (n=1)",
+    "corpus": "private screen-capture corpus, 51 active days over a 72-day span, single user (n=1)",
     "R_action_median": 343.0, "R_action_iqr": [297.0, 390.0],
     "R_url_median": 198.0, "R_url_iqr": [165.0, 228.0],
     "R_action_screen_band_median": {"conservative_1280x800": 259.0, "retina_1728x1117": 425.0},

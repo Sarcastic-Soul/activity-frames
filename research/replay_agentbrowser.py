@@ -7,20 +7,19 @@ We never replay the identical past action; we reuse the "way" and drop in new pa
 "Deterministic" here refers to how each step is GROUNDED - by accessibility role+name at
 ~0 LLM tokens, reproducibly - not to the content, which is always new.
 
-REPRODUCES the nocta-execute browser stack and
-adds the compiled 0-token fast-path. Does NOT modify the internal nocta-execute skill
-(that stays untouched, per the maintainer); this is a standalone reproduction of its agent-browser
-approach (daemon-reuse, real profile, human pacing, safety) with the one novel piece on
-top: deterministic role+name grounding of a compiled plan, so replay costs ~0 LLM tokens.
+A STANDALONE agent-browser executor (daemon reuse, real Chrome profile, human
+pacing, safety guards) with the one novel piece on top: deterministic role+name
+grounding of a compiled plan, so replay costs ~0 LLM tokens.
 
 The split: this file is the compiled fast-path (grounding ladder tier 1 role+name / tier 2
-OCR fingerprint, 0 tokens); on a miss with --deopt it hands off to a local LLM step (the
-nocta-execute-style interpreter). The daemon-management + pacing reproduce the hard-won
-lessons in actions/browser-real-chrome-profile.md + docs/lessons/browser.md (launch bound
---profile ... --headed ONCE and REUSE; never cycle close/open into the headless fallback).
+OCR fingerprint, 0 tokens); on a miss with --deopt it hands off to a local LLM step that
+reasons about the live page. Daemon management + pacing follow the rules that keep a
+real-profile browser stable: launch bound --profile ... --headed ONCE and REUSE the
+daemon; never cycle close/open into the headless fallback.
 
-STATUS: parser verified on a real live snapshot (100%); a full live run_plan (real clicks)
-is the remaining validation - do it once the browser is free.
+STATUS: parser verified on a real live snapshot (100%). A first owner-authorized live
+run has completed: a compiled two-step routine, retrieved from a natural-language
+request, executed in a real authenticated browser at zero model tokens.
 
   python3 replay_agentbrowser.py plan.json                 # SAFE default: dry-run, never clicks
   python3 replay_agentbrowser.py plan.json --execute       # opt in to real browser actions

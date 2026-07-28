@@ -82,6 +82,10 @@ on his real authenticated routines, with real Anthropic usage JSON. Built + one 
 (research/bench_three_arm.py); needs his machine + accounts + eyes. Converts modeled R into a
 demonstrated dollar saving.
 
+Update: a first owner-authorized live run has completed - a compiled two-step routine,
+retrieved from a natural-language request, executed in a real authenticated browser at
+zero model tokens. The billed three-arm benchmark above remains reserved.
+
 ## 7. Three-arm bench (modeled, research/bench_three_arm.py)
 On the repeated routines, weighted by occurrences (Sonnet-class $3/$15):
 - Arm A memoryless: $125.81 / 32.8M tok

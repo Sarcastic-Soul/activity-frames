@@ -88,20 +88,20 @@ Standard kinds include: `profile`, `company`, `feed`, `messaging`, `people_searc
 
 ### 4.2 Input privacy rule
 
-Input **volume** (counts) is part of the standard document. Input **content** (typed text) must be excluded by default and only included on an explicit opt-in from the operator of the producing tool.
+Input **volume** (counts) is part of the standard document. Input **content** (typed text) must be excluded by default and only included on an explicit opt-in from the operator of the producing tool. When opted in, the reference producer emits it as `input.text`.
 
 ## 5. Determinism rules
 
 Implementations must produce identical documents for identical inputs. The reference constants:
 
 ### 5.1 Dwell
-Capture is event-driven: a frame is stored when the screen changes. A frame contributes `min(gap_to_next_frame, 90s)` of active time. The cap prevents a static screen (or an absent user) from earning unbounded credit. `duration_min` is the sum of dwells inside the frame.
+Capture is event-driven: a frame is stored when the screen changes. A raw frame contributes `min(gap_to_next_frame, 90s)` of active time when the gap to the next frame is within the session gap (`300s`); the final frame of a session contributes `0`. The cap prevents a static screen (or an absent user) from earning unbounded credit. `duration_min` is the sum of dwells inside the frame.
 
 ### 5.2 Session gap
 A gap larger than `300s` between consecutive raw frames closes the current activity frame and is a candidate coverage gap (reported when >= 5 min).
 
 ### 5.3 Flicker merge
-The sequence A -> B -> A, where B lasts at most `20s` of wall time and no session gap intervenes on either side of B, collapses into a single A frame. B is recorded in `interruptions` with its measured seconds. B's time is **not** added to A's `duration_min`. Nothing is silently dropped.
+The sequence A -> B -> A collapses into a single A frame when B's own frame span (first to last of B's raw frames; a single-snapshot B spans `0s`) is at most `20s` and no session gap intervenes on either side of B. B is recorded in `interruptions` with its measured `seconds`: B's active time including its dwell-capped gap back to A, which can exceed the `20s` span threshold. B's time is **not** added to A's `duration_min`. Nothing is silently dropped.
 
 ### 5.4 Minimum duration
 Producers may offer a `min_minutes` filter for consumer convenience. Filtered-out frames are omitted with the count disclosed in the document (`omitted: {below_min_minutes: N, min_minutes: X}`); they must never be silently merged into neighbors.
@@ -136,6 +136,8 @@ A consumer must always be able to strip everything under `inferred` and be left 
 ## 8. Versioning
 
 `schema_version` increments only on breaking changes to tier-1 field semantics. Additive fields do not bump the version. Consumers should ignore unknown fields.
+
+Producers may emit underscore-prefixed diagnostics (the reference implementation's `--debug` flag adds a `_debug` block explaining segment splits/merges). Underscore-prefixed fields are not part of the schema and consumers must ignore them.
 
 ## 9. Sources
 

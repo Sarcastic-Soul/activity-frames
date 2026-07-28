@@ -1,7 +1,7 @@
 """Deterministically build the routine DB from the capture DB.
 
-Per the routine-DB design notes: this is the ~95%-deterministic layer. It mines the
-frequent recurring action SEQUENCES (routines), attaches each step's multi-modal
+Design: a two-tier routine store; this is the ~95%-deterministic layer. It mines
+the frequent recurring action SEQUENCES (routines), attaches each step's multi-modal
 fingerprint, and stores routines with evidence POINTERS back to the raw capture.
 It writes NOTHING to the Tier-2 (LLM) columns (name, description, confidence,
 is_slot, slot_name) - a later idle-time semantic pass fills those.

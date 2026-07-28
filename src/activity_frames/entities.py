@@ -316,8 +316,9 @@ def _partiful(domain, parts, q):
 def _producthunt(domain, parts, q):
     if len(parts) >= 2 and parts[0] in ("posts", "products"):
         return PageRef(kind="product", domain=domain, entity=_slug(parts[1]))
-    if len(parts) >= 2 and parts[0] == "@":
-        return PageRef(kind="profile", domain=domain, entity=parts[1])
+    if parts and parts[0].startswith("@"):
+        return PageRef(kind="profile", domain=domain,
+                       entity=_slug(parts[0][1:]) or None)
     return None
 
 

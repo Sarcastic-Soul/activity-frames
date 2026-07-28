@@ -1,11 +1,13 @@
 """aframes: command-line interface.
 
+  aframes record                      start the built-in capture engine
   aframes today                       today's frames (yaml)
   aframes day 2026-07-04 -f json      a specific day
   aframes context --hours 3           paste-ready agent context block
   aframes apps                        per-app ledger for today
   aframes patterns --days 7           repetitive workflows
   aframes comms --hours 24            email/messaging surfaces + titles
+  aframes steps --frame f-0002        one frame's click-by-click script
   aframes mcp                         run the MCP stdio server
 """
 from __future__ import annotations

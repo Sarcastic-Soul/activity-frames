@@ -114,6 +114,8 @@ def test_events_and_dashboards():
     assert parse_url("https://partiful.com/e/abcDEF").kind == "event"
     pp = parse_url("https://www.producthunt.com/posts/some-cool-tool")
     assert (pp.kind, pp.entity) == ("product", "some cool tool")
+    ph = parse_url("https://www.producthunt.com/@some_maker")
+    assert (ph.kind, ph.entity) == ("profile", "some maker")
     assert parse_url("https://vercel.com/team/project").kind == "project"
     sb = parse_url("https://supabase.com/dashboard/project/abcref")
     assert (sb.kind, sb.entity) == ("project", "abcref")
@@ -289,7 +291,7 @@ def test_crunchbase_company_and_profile():
     org = parse_url("https://www.crunchbase.com/organization/acme")
     assert (org.kind, org.domain, org.entity) == ("company", "crunchbase.com", "acme")
     person = parse_url("https://www.crunchbase.com/person/jane-doe")
-    assert (person.kind, person.domain, person.entity) == ("profile", "crunchbase.com", "nossa iyamu")
+    assert (person.kind, person.domain, person.entity) == ("profile", "crunchbase.com", "jane doe")
 
 
 def test_crunchbase_funding_and_discover():

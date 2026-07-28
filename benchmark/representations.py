@@ -9,7 +9,7 @@ Also token-counts each (cl100k_base, matching the paper) and saves to reps/<day>
 import subprocess, sqlite3, json, os, sys
 
 DB = os.path.expanduser("~/.nocta/data/db.sqlite")
-AF = os.path.expanduser("~/activity-frames/.venv/bin/aframes")
+AF = os.environ.get("AFRAMES_BIN", "aframes")  # aframes CLI (PATH or explicit)
 OUT = os.path.dirname(os.path.abspath(__file__)) + "/reps"
 os.makedirs(OUT, exist_ok=True)
 

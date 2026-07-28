@@ -11,7 +11,7 @@ data. Read-only. Two layers: 11 offline experiments you run in one command, and 
 cp ~/.nocta/data/db.sqlite /tmp/corpus_ro.sqlite
 
 # 2. Run the offline suite
-cd ~/activity-frames/research/suite
+cd research/suite
 AFRAMES_CORPUS=/tmp/corpus_ro.sqlite ./run_all.sh
 #    add --with-network to also run the Mind2Web replication (t12)
 ```
@@ -20,7 +20,9 @@ Output: a `suite_report.md` table (PASS/FAIL per test) plus per-test JSON in
 `results/`. Total offline runtime is roughly 8-15 minutes (t04 and the wrappers
 that re-mine dominate; t05 and t10 are fast).
 
-Requirements: Python 3.9+, `tiktoken` (already a repo dep). t12 additionally needs
+Requirements: Python 3.9+. `tiktoken` is optional (`pip install tiktoken`);
+without it token counts fall back to a chars/4 estimate and the numbers will
+differ from the published results. t12 additionally needs
 `pip install datasets huggingface_hub` and network.
 
 ## The offline experiments
@@ -83,5 +85,4 @@ dollar savings, success rates, and a 95% bootstrap CI on the saving.
 ## Provenance
 These tests wrap and extend the committed instruments in `../` (measure_overhead,
 compile_replay, measure_corpus, certify_ivm, bench_three_arm, measure_overhead_public).
-The findings they validate are documented in `../RESULTS.md` and
-`~/research-notes/REPORT.md`.
+The findings they validate are documented in `../RESULTS.md`.

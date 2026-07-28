@@ -34,6 +34,7 @@ import json
 import os
 import sqlite3
 import statistics
+import sys
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -52,6 +53,9 @@ try:
 except Exception:                                        # pragma: no cover
     def toks(s: str) -> int: return max(1, len(s) // 4)
     TOKENIZER = "chars/4-fallback"
+    print("warning: tiktoken not installed - token counts use a chars/4 "
+          "estimate and will differ from published results "
+          "(pip install tiktoken)", file=sys.stderr)
 
 # ---- re-derivation cost model (cited parameters, swept) ---------------------
 # Anthropic image tokens = (w*h)/750  [docs.claude.com vision]. Common macOS
