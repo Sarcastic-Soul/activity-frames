@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and versions follow semantic
 versioning. The document schema version is tracked separately in [SPEC.md](SPEC.md).
 
+## [Unreleased]
+
+### Fixed
+- Revisit-then-dwell page counts: `_pages_for_segment()` credited dwell frames
+  to the last-appended page instead of the current page (A,B,A,A counted
+  A:2/B:2 instead of A:3/B:1). Page `count` values in emitted documents and
+  context blocks change where a page was revisited then dwelled on; totals,
+  ordering, and evidence are unchanged (#31).
+
+### Changed
+- `context_block()` serializes only the frames it emits; output is
+  byte-identical (#23).
+
 ## [0.2.2] - 2026-07-28
 
 ### Added
