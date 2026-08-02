@@ -104,17 +104,20 @@ def test_quantified_debug_reasons_flicker_and_dwell():
     from activity_frames.sessionize import RawFrame, _segment_stream
 
     # Frame 1 & 2: gap of 150s (> dwell_cap of 90s, <= session_gap of 300s) -> dwell capped
-    # Frame 3: brief flicker to Slack (5s <= 20s)
-    # Frame 4: return to Chrome
+    # Frame 3 & 4: brief flicker to Slack (start 260.0, end 265.0 => span 5s <= 20s)
+    # Frame 5: return to Chrome at epoch 365.0 => Slack active_seconds is 90s (dwell capped), but span is 5s
     raw_frames = [
         RawFrame(id=1, epoch=100.0, app="Google Chrome", window="Main", url=None, domain="chrome.com"),
         RawFrame(id=2, epoch=250.0, app="Google Chrome", window="Main", url=None, domain="chrome.com"),
         RawFrame(id=3, epoch=260.0, app="Slack", window="Chat", url=None, domain=None),
-        RawFrame(id=4, epoch=265.0, app="Google Chrome", window="Main", url=None, domain="chrome.com"),
+        RawFrame(id=4, epoch=265.0, app="Slack", window="Chat", url=None, domain=None),
+        RawFrame(id=5, epoch=365.0, app="Google Chrome", window="Main", url=None, domain="chrome.com"),
     ]
     segs = _segment_stream(raw_frames, dwell_cap=90.0, session_gap=300.0, merge_flicker=20.0)
     assert len(segs) == 1
     notes = segs[0].debug_notes
     assert any("dwell capped: 90s" in n for n in notes)
+    # The note must quote the span (5s), not the active interruption seconds (90s)
     assert any("merged flicker: Slack 5s <= 20s" in n for n in notes)
+
 

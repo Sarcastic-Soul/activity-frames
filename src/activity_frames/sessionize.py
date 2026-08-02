@@ -78,7 +78,6 @@ class Segment:
     interruptions: list[Interruption] = field(default_factory=list)
     break_reason: str = ""        # why this segment started (debug)
     debug_notes: list[str] = field(default_factory=list)  # quantified debug notes
-    device: str = ""
 
     @property
     def key(self) -> tuple[str, str | None]:
@@ -152,12 +151,16 @@ def segments(
     for f in all_frames:
         by_device.setdefault(f.device, []).append(f)
 
+    # Only include device debug notes when the window spans multiple devices
+    include_device_note = len(by_device) > 1
+
     merged: list[Segment] = []
     for stream in by_device.values():
         merged.extend(
             _segment_stream(stream, dwell_cap=dwell_cap,
                             session_gap=session_gap,
-                            merge_flicker=merge_flicker)
+                            merge_flicker=merge_flicker,
+                            include_device_note=include_device_note)
         )
     merged.sort(key=lambda s: s.start_epoch)
     return merged
@@ -169,6 +172,7 @@ def _segment_stream(
     dwell_cap: float,
     session_gap: float,
     merge_flicker: float,
+    include_device_note: bool = False,
 ) -> list[Segment]:
     if not frames:
         return []
@@ -200,9 +204,8 @@ def _segment_stream(
                 app=f.app, domain=f.domain,
                 start_epoch=f.epoch, end_epoch=f.epoch,
                 break_reason=reason,
-                device=f.device,
             )
-            if f.device:
+            if include_device_note and f.device:
                 cur.debug_notes.append(f"device: {f.device}")
             raw.append(cur)
         cur.frames.append(f)
@@ -237,10 +240,11 @@ def _segment_stream(
             and raw[i + 2].start_epoch - raw[i + 1].end_epoch <= session_gap
         ):
             flicker, cont = raw[i + 1], raw[i + 2]
+            flicker_span = int(round(flicker.wall_seconds()))
             flicker_seconds = round(flicker.active_seconds or flicker.wall_seconds() or 1.0, 1)
             flicker_name = flicker.app + (f" ({flicker.domain})" if flicker.domain else "")
             seg.debug_notes.append(
-                f"merged flicker: {flicker_name} {int(round(flicker_seconds))}s <= {int(merge_flicker)}s"
+                f"merged flicker: {flicker_name} {flicker_span}s <= {int(merge_flicker)}s"
             )
             # The flicker's time is recorded on the interruption, NOT
             # added to the host segment's active time: active_seconds
